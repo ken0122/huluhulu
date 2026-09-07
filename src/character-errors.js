@@ -35,6 +35,16 @@ const thinkingLimits = {
   de: 'Das Modell hat sein Ausgabelimit für Überlegungen verbraucht, ohne einen Satz zu liefern. Wählen Sie ein direkt antwortendes Chatmodell.',
   ru: 'Модель исчерпала лимит на размышления, не выдав реплику. Выберите модель, отвечающую напрямую.',
 };
+const providerSettingsInvalid = {
+  'zh-CN': '无法读取已保存的 API 设置。请在聊天设置中清除后重新填写接口、密钥和模型。',
+  'zh-TW': '無法讀取已儲存的 API 設定。請在聊天設定中清除後重新填寫介面、金鑰和模型。',
+  en: 'The saved API settings cannot be read. Clear Chat Settings, then enter the endpoint, key, and models again.',
+  ja: '保存済みのAPI設定を読み取れません。チャット設定を消去し、接続先、キー、モデルを再入力してください。',
+  fr: 'Les réglages API enregistrés sont illisibles. Effacez les réglages de chat, puis saisissez à nouveau le point d’accès, la clé et les modèles.',
+  de: 'Die gespeicherten API-Einstellungen können nicht gelesen werden. Lösche die Chat-Einstellungen und gib Endpunkt, Schlüssel und Modelle erneut ein.',
+  ru: 'Не удалось прочитать сохранённые настройки API. Очистите настройки чата и заново укажите адрес, ключ и модели.',
+};
+for (const [locale, message] of Object.entries(providerSettingsInvalid)) CHARACTER_ERROR_MESSAGES[locale].CHAR_PROVIDER_SETTINGS = message;
 const phaseLabels = {
   'zh-CN': ['台词生成', '台词翻译'], 'zh-TW': ['台詞生成', '台詞翻譯'],
   en: ['Generation', 'Translation'], ja: ['生成', '翻訳'], fr: ['Génération', 'Traduction'],
@@ -49,7 +59,8 @@ export function characterErrorMessage(locale, error) {
     : error.code === 'CHAR_INVALID_OUTPUT' && details.field ? ` (${details.field})` : '';
   const labels = phaseLabels[locale] || phaseLabels.en;
   const phase = ['generation', 'translation'].includes(details.phase) ? `${labels[details.phase === 'translation' ? 1 : 0]}: ` : '';
-  const timedMessage = error.code === 'CHAR_REPAIR_TIMEOUT' ? message.replace('30', String(details.timeoutSeconds || 30)) : message;
+  const timedMessage = ['CHAR_TIMEOUT', 'CHAR_TRANSLATION_TIMEOUT', 'CHAR_REPAIR_TIMEOUT'].includes(error.code)
+    ? message.replace('30', String(details.timeoutSeconds || 30)) : message;
   return phase + timedMessage.replace(/\{(field|maximum|length)\}/g, (_, key) => String(details[key] ?? '?')) + suffix;
 }
 export function characterErrorDetails(error) {

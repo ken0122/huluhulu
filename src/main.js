@@ -42,6 +42,7 @@ import { transitionState } from "./app-state.js";
 import { createApiSettingsStore } from "./api-settings.js";
 import { analyzeCharacterImage, generateCharacterFields } from "./character-analysis.js";
 import { createCharacterLibrary } from "./character-library.js";
+import { CharacterError } from "./character-errors.js";
 import { loadChatProvider, PROVIDER_NOT_CONFIGURED } from "./chat-provider.js";
 import { askClaude } from "./chat.js";
 import { createReminderStore, createReminders } from "./reminders.js";
@@ -155,7 +156,16 @@ function characterServices() {
     if (typeof services?.provider !== "function" || typeof services?.request !== "function") throw new Error("Character test transport is required");
     return { provider: services.provider, request: services.request, locale };
   }
-  return { provider: () => apiSettingsStore.provider() || loadChatProvider(), locale };
+  return {
+    provider: async () => {
+      try { return apiSettingsStore.provider() || await loadChatProvider(); }
+      catch (error) {
+        if (error?.code === PROVIDER_NOT_CONFIGURED) throw error;
+        throw new CharacterError("CHAR_PROVIDER_SETTINGS", "无法读取已保存的 API 设置。请清除后重新配置。");
+      }
+    },
+    locale,
+  };
 }
 
 const windowBackground = () => nativeTheme.shouldUseDarkColors ? "#11182b" : "#fbfcff";

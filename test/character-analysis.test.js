@@ -728,6 +728,27 @@ test('only thinking exhaustion gets a longer independent deadline, including res
   }
 });
 
+test('full-text generation gives the initial response and repair 90 seconds while smaller scopes keep 30', async t => {
+  const deadlines = [];
+  const originalTimeout = AbortSignal.timeout;
+  t.mock.method(AbortSignal, 'timeout', ms => { deadlines.push(ms); return originalTimeout(ms); });
+  let calls = 0;
+  await generateCharacterFields({name:'黑猫',analysis:valid,scope:'all'}, {
+    provider:mockProvider,request:async()=>{
+      calls++;
+      if(calls===1) return Response.json({content:[]});
+      return modelReply({name:'黑猫',persona:valid.persona,dialogue:valid.dialogue,easterEgg:valid.easterEgg});
+    },
+  });
+  assert.deepEqual(deadlines,[90000,90000]);
+
+  deadlines.length=0;
+  await generateCharacterFields({name:'黑猫',analysis:valid,scope:'persona'}, {
+    provider:mockProvider,request:async()=>modelReply({name:'黑猫',persona:valid.persona}),
+  });
+  assert.deepEqual(deadlines,[30000]);
+});
+
 test('translation recovers thinking exhaustion with one bounded retry and preserves every line', async () => {
   for (const lines of [['摸摸头'], ['摸摸头', '再来一次']]) {
     const analysis = {...valid, dialogue: {...valid.dialogue, headpat: lines}};

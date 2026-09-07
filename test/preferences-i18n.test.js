@@ -39,6 +39,7 @@ test("all seven catalogs expose the same keys and placeholders", () => {
   assert.equal(brand("zh-TW"), "呼噜呼噜");
   assert.equal(brand("de"), "Hulu Hulu");
   assert.equal(t("fr", "quit", { brand: brand("fr") }), "Quitter Hulu Hulu");
+  assert.match(t("en", "characterImageOperationFailed"), /static PNG or JPEG under 10 MB/);
 });
 
 test("built-in profiles localize without mutating the source profile", () => {

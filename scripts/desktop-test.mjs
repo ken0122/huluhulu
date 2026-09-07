@@ -413,7 +413,9 @@ try {
     const originalPicker = dialog.showOpenDialog;
     const originalMessageBox = dialog.showMessageBox;
     let pickerCalls = 0, closePrompts = 0, rightsPrompts = 0, rightsAllowed = false;
-    let picked = path.resolve("assets/characters/black-cat/source.png");
+    let picked = process.env.BLUEPET_TEST_CHARACTER_IMAGE
+      ? path.resolve(process.env.BLUEPET_TEST_CHARACTER_IMAGE)
+      : path.resolve("assets/characters/black-cat/source.png");
     dialog.showOpenDialog = async () => { pickerCalls++; return picked ? {canceled:false,filePaths:[picked]} : {canceled:true,filePaths:[]}; };
     dialog.showMessageBox = async (_owner, options) => {
       if (options.defaultId === 1 && options.cancelId === 1) {

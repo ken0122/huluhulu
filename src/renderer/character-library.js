@@ -46,13 +46,13 @@ function controls() {
   document.querySelectorAll("#draft-fields input, #draft-fields textarea, #draft-fields select").forEach(field => { field.disabled = busy; });
   $("#draft-fields").setAttribute("aria-busy", String(busy));
 }
-async function operation(fn) {
+async function operation(fn, fallbackKey = "characterOperationFailed") {
   if (busy) return;
   busy = true; controls();
   try { await fn(); }
   catch (error) {
     if (error.code === "PROVIDER_NOT_CONFIGURED") status(tr("providerMissingAction"), true, true);
-    else status(localizedError(error, "characterOperationFailed"), true);
+    else status(localizedError(error, fallbackKey), true);
   }
   finally { busy = false; controls(); }
 }
@@ -334,7 +334,7 @@ $("#choose").addEventListener("click", () => operation(async () => {
   api.setDirty(true);
   renderCatalog();
   status(tr(draft.blocked ? "analysisBlocked" : "analysisReady"), draft.blocked);
-}));
+}, "characterImageOperationFailed"));
 $("#apply").addEventListener("click", () => operation(async () => {
   const mode = draft?.mode, targetId = draft?.id || selected.id;
   catalog = await request(mode === "import"

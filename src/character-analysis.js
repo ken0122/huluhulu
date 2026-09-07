@@ -417,7 +417,7 @@ JSON：${JSON.stringify(generationOutputShape(target))}`;
 // translation never inherits the nearly expired signal of a previous request.
 // Output caps leave headroom for compatible providers; short replies are enforced
 // by prompts and field validation, not by starving the JSON response of tokens.
-function characterSender(config, request, { model, budget, phase = "generation", onProgress }) {
+function characterSender(config, request, { model, budget, phase = "generation", timeoutSeconds: standardTimeoutSeconds = 30, onProgress }) {
   // DeepSeek V4 defaults to thinking even when this standard Messages field is
   // omitted. Translation needs the final text. Limit the capability to the
   // documented official endpoint; do not guess support on third-party gateways.
@@ -432,7 +432,7 @@ function characterSender(config, request, { model, budget, phase = "generation",
     // Reasoning shares max_tokens on some compatible gateways. A short final
     // translation still needs headroom; escalate only the single allowed retry.
     const maxTokens = thinkingRetry ? Math.max(8192, budget * 2) : retry || repair ? budget * 2 : budget;
-    const timeoutSeconds = thinkingRetry ? 90 : 30;
+    const timeoutSeconds = thinkingRetry ? Math.max(90, standardTimeoutSeconds) : standardTimeoutSeconds;
     onProgress?.(currentPhase, { ...diagnostics(), ...(thinkingRetry ? { timeoutSeconds } : {}) });
     const started = performance.now();
     try {
@@ -452,7 +452,7 @@ function characterSender(config, request, { model, budget, phase = "generation",
     } catch (error) {
       if (error.name === "TimeoutError" || error.name === "AbortError") {
         const code = repair ? "CHAR_REPAIR_TIMEOUT" : phase === "translation" ? "CHAR_TRANSLATION_TIMEOUT" : "CHAR_TIMEOUT";
-        throw new CharacterError(code, repair ? `格式修正超过 ${timeoutSeconds} 秒，请重试。` : phase === "translation" ? "互动翻译超过 30 秒，请重试。" : "角色生成超过 30 秒，请重试。", { timeoutSeconds });
+        throw new CharacterError(code, repair ? `格式修正超过 ${timeoutSeconds} 秒，请重试。` : phase === "translation" ? `互动翻译超过 ${timeoutSeconds} 秒，请重试。` : `角色生成超过 ${timeoutSeconds} 秒，请重试。`, { timeoutSeconds });
       }
       if (error instanceof TypeError) throw new CharacterError("CHAR_NETWORK", "暂时连不上接口，无法生成角色资料。");
       if (error instanceof SyntaxError) throw new CharacterError("CHAR_UNREADABLE", "接口返回的生成结果暂时无法读取，请重试。");
@@ -528,7 +528,12 @@ export async function generateCharacterFields({ svg, name, analysis, saved, scop
   return validatedModelReply({ content, ...singleLine, dialogueCount: action === "generate" ? GENERATED_DIALOGUE_COUNT : undefined,
     translation: action === "translate", repairRequirements: scopeRequirements(target, action === "translate"),
     send: characterSender(config, request, { model: visual ? config.visionModel || config.model : config.model,
-      budget: visual ? 2200 : target.scope === "all" ? 4096 : 2048, phase: action === "translate" ? "translation" : "generation", onProgress }),
+      budget: visual ? 2200 : target.scope === "all" ? 4096 : 2048,
+      // A complete profile contains seven four-line interaction groups plus
+      // persona and easter-egg fields. Compatible gateways can need more than
+      // 30 seconds to return and stream that larger response.
+      timeoutSeconds: !visual && action === "generate" && target.scope === "all" ? 90 : 30,
+      phase: action === "translate" ? "translation" : "generation", onProgress }),
     validate: patch => {
       if (action === "generate" && ["all", "dialogue"].includes(target.scope))
         requireDialogue(patch?.dialogue, target.intent ? [target.intent] : CHARACTER_INTENTS, GENERATED_DIALOGUE_MAX, GENERATED_DIALOGUE_COUNT);

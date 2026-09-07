@@ -4,8 +4,8 @@ import {CharacterError,characterErrorMessage,characterErrorDetails,CHARACTER_ERR
 
 test('all seven locales preserve distinct generation failures and bounded field details',()=>{
   for(const [locale,messages] of Object.entries(CHARACTER_ERROR_MESSAGES)) {
-    assert.equal(Object.keys(messages).length,20);
-    const codes=['CHAR_EMPTY_REPLY','CHAR_TIMEOUT','CHAR_AUTH','CHAR_JSON','CHAR_TRUNCATED','CHAR_RATE','CHAR_TRANSLATION_TIMEOUT','CHAR_REPAIR_TIMEOUT'];
+    assert.equal(Object.keys(messages).length,21);
+    const codes=['CHAR_EMPTY_REPLY','CHAR_TIMEOUT','CHAR_AUTH','CHAR_JSON','CHAR_TRUNCATED','CHAR_RATE','CHAR_TRANSLATION_TIMEOUT','CHAR_REPAIR_TIMEOUT','CHAR_PROVIDER_SETTINGS'];
     assert.equal(new Set(codes.map(code=>characterErrorMessage(locale,{code}))).size,codes.length);
     const error=new CharacterError('CHAR_TEXT_LONG','secret provider body',{field:'en.headpat[1]',maximum:50,length:65,provider:'secret'});
     const details=characterErrorDetails(error);
@@ -26,13 +26,15 @@ test('HTTP status and invalid field survive localization without leaking provide
   assert.deepEqual(characterErrorDetails(new CharacterError('CHAR_HTTP', '', { status: 'secret', field: 'private/response' })), {});
 });
 
-test('repair timeout reports the actual bounded deadline in all languages', () => {
+test('timeouts report the actual bounded deadline in all languages', () => {
   for(const locale of Object.keys(CHARACTER_ERROR_MESSAGES)) {
-    for(const seconds of [30,90]) {
-      const error=new CharacterError('CHAR_REPAIR_TIMEOUT','private',{timeoutSeconds:seconds});
-      assert.deepEqual(characterErrorDetails(error),{timeoutSeconds:seconds});
-      assert.ok(characterErrorMessage(locale,error).includes(String(seconds)));
+    for(const code of ['CHAR_TIMEOUT','CHAR_TRANSLATION_TIMEOUT','CHAR_REPAIR_TIMEOUT']) {
+      for(const seconds of [30,90]) {
+        const error=new CharacterError(code,'private',{timeoutSeconds:seconds});
+        assert.deepEqual(characterErrorDetails(error),{timeoutSeconds:seconds});
+        assert.ok(characterErrorMessage(locale,error).includes(String(seconds)));
+      }
+      assert.ok(characterErrorMessage(locale,{code,details:{timeoutSeconds:999}}).includes('30'));
     }
-    assert.ok(characterErrorMessage(locale,{code:'CHAR_REPAIR_TIMEOUT',details:{timeoutSeconds:999}}).includes('30'));
   }
 });
