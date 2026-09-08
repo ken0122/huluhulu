@@ -66,6 +66,23 @@ test("image text repair preserves the original geometry despite replacement boxe
   }
 });
 
+test("image analysis gives both generation and response repair 90 seconds", async t => {
+  const bytes = await readFile(new URL("../assets/characters/black-cat/source.png", import.meta.url));
+  const deadlines = [];
+  const originalTimeout = AbortSignal.timeout;
+  t.mock.method(AbortSignal, "timeout", milliseconds => {
+    deadlines.push(milliseconds);
+    return originalTimeout(milliseconds);
+  });
+  let calls = 0;
+  const result = await analyzeCharacterImage({ bytes, mime: "image/png" }, {
+    provider: mockProvider,
+    request: async () => calls++ === 0 ? Response.json({ content: [] }) : modelReply(completeAnalysis(valid)),
+  });
+  assert.equal(result.persona.identity, valid.persona.identity);
+  assert.deepEqual(deadlines, [90_000, 90_000]);
+});
+
 test("text fallback and shape repair are bounded and HTTP failures are not retried", async () => {
   const svg = await readFile(new URL("../assets/characters/black-cat/character.svg", import.meta.url), "utf8");
   const input = { svg, name: "黑猫", analysis: valid, scope: "persona" };

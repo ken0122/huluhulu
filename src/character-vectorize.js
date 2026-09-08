@@ -1,6 +1,6 @@
 // Deterministic first importer profile: dark, monochrome artwork on a white or
 // transparent background. No model, file access, SVG parsing or anatomy guesses.
-const MAX_PIXELS = 1024 * 1024;
+const MAX_PIXELS = 4 * 1024 * 1024;
 const MAX_EDGES = 24000;
 
 function contours(mask, tones, width, height) {
@@ -95,7 +95,7 @@ function pathFor(points, mapPoint) {
 export function vectorizeMonochrome({ data, width, height }) {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 3 || height < 3
     || width * height > MAX_PIXELS || !(data instanceof Uint8Array) || data.length !== width * height * 4) {
-    throw new Error("需要不超过 1024×1024 像素总量的 RGBA 图片。");
+    throw new Error("需要总像素不超过 4,194,304 的 RGBA 图片。");
   }
   const dark = new Uint8Array(width * height), light = new Uint8Array(width * height);
   const tones = new Uint8Array(width * height).fill(255);
@@ -171,7 +171,7 @@ function colorDistance(a, b) {
 export function prepareColorRaster({ data, width, height }) {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 3 || height < 3
     || width * height > MAX_PIXELS || !(data instanceof Uint8Array) || data.length !== width * height * 4) {
-    throw new Error("需要不超过 1024×1024 像素总量的 RGBA 图片。");
+    throw new Error("需要总像素不超过 4,194,304 的 RGBA 图片。");
   }
   const output = new Uint8Array(data), pixels = width * height;
   let transparent = 0;

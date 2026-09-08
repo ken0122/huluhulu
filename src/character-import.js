@@ -1,7 +1,7 @@
 // Narrow raster envelope check, before passing bytes to the sandbox decoder.
 // Not an image decoder: malformed compressed data is rejected by Chromium.
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-export const MAX_IMAGE_PIXELS = 1024 * 1024;
+export const MAX_IMAGE_PIXELS = 4 * 1024 * 1024;
 export function inspectCharacterImage(bytes) {
   if (!(bytes instanceof Uint8Array) || bytes.length > MAX_IMAGE_BYTES || bytes.length < 24)
     throw new Error("请选择不超过 10 MB 的 PNG 或 JPG 图片。");
@@ -9,7 +9,7 @@ export function inspectCharacterImage(bytes) {
   const tag = (offset, length) => String.fromCharCode(...bytes.subarray(offset, offset + length));
   function dimensions(width, height, mime) {
     if (!width || !height || width * height > MAX_IMAGE_PIXELS)
-      throw new Error("图片总像素不能超过 1,048,576，请先缩小图片。");
+      throw new Error("图片总像素不能超过 4,194,304，请先缩小图片。");
     return { width, height, mime };
   }
   if ([137,80,78,71,13,10,26,10].every((value, i) => bytes[i] === value)) {

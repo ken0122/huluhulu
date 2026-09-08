@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import { createCharacterStore } from "../src/character-store.js";
-import { inspectCharacterImage, validateGeneratedSvg, MAX_IMAGE_BYTES } from "../src/character-import.js";
+import { inspectCharacterImage, validateGeneratedSvg, MAX_IMAGE_BYTES, MAX_IMAGE_PIXELS } from "../src/character-import.js";
 
 const sample = new URL("../assets/characters/black-cat/", import.meta.url);
 const analysis = {
@@ -23,6 +23,9 @@ test("raster boundary rejects oversized, animated, truncated and disguised files
   assert.deepEqual(inspectCharacterImage(png), { width:400,height:300,mime:"image/png" });
   const jpg = await sharp(png).jpeg().toBuffer();
   assert.equal(inspectCharacterImage(jpg).mime, "image/jpeg");
+  const withinLimit = Buffer.from(png); withinLimit.writeUInt32BE(1200, 16); withinLimit.writeUInt32BE(1200, 20);
+  assert.deepEqual(inspectCharacterImage(withinLimit), { width:1200,height:1200,mime:"image/png" });
+  assert.equal(MAX_IMAGE_PIXELS, 4_194_304);
   assert.throws(() => inspectCharacterImage(Buffer.alloc(MAX_IMAGE_BYTES + 1)), /10 MB/);
   assert.throws(() => inspectCharacterImage(Buffer.from('<svg onload="alert(1)">not png</svg>')), /PNG\/JPG/);
   assert.throws(() => inspectCharacterImage(png.subarray(0, 40)), /不完整/);
@@ -44,7 +47,7 @@ test("generated SVG grammar accepts only a bounded embedded PNG raster", () => {
   assert.equal(validateGeneratedSvg(svg), svg);
   assert.throws(() => validateGeneratedSvg(svg.replace("data:image/png", "https://evil.test/image")));
   assert.throws(() => validateGeneratedSvg(svg.replace("<image ", "<image onload=\"alert(1)\" ")));
-  const oversized = Buffer.from(png, "base64"); oversized.writeUInt32BE(2_000_000, 16);
+  const oversized = Buffer.from(png, "base64"); oversized.writeUInt32BE(5_000_000, 16);
   assert.throws(() => validateGeneratedSvg(svg.replace(png, oversized.toString("base64"))), /总像素/);
 });
 test("local library atomically persists import/selection/removal, rejects bad input and serializes mutations", async t => {

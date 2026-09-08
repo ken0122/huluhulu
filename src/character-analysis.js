@@ -417,7 +417,8 @@ JSON：${JSON.stringify(generationOutputShape(target))}`;
 // translation never inherits the nearly expired signal of a previous request.
 // Output caps leave headroom for compatible providers; short replies are enforced
 // by prompts and field validation, not by starving the JSON response of tokens.
-function characterSender(config, request, { model, budget, phase = "generation", timeoutSeconds: standardTimeoutSeconds = 30, onProgress }) {
+function characterSender(config, request, { model, budget, phase = "generation", timeoutSeconds: standardTimeoutSeconds = 30,
+  repairTimeoutSeconds = standardTimeoutSeconds, onProgress }) {
   // DeepSeek V4 defaults to thinking even when this standard Messages field is
   // omitted. Translation needs the final text. Limit the capability to the
   // documented official endpoint; do not guess support on third-party gateways.
@@ -432,8 +433,9 @@ function characterSender(config, request, { model, budget, phase = "generation",
     // Reasoning shares max_tokens on some compatible gateways. A short final
     // translation still needs headroom; escalate only the single allowed retry.
     const maxTokens = thinkingRetry ? Math.max(8192, budget * 2) : retry || repair ? budget * 2 : budget;
-    const timeoutSeconds = thinkingRetry ? Math.max(90, standardTimeoutSeconds) : standardTimeoutSeconds;
-    onProgress?.(currentPhase, { ...diagnostics(), ...(thinkingRetry ? { timeoutSeconds } : {}) });
+    const timeoutSeconds = thinkingRetry ? Math.max(90, repairTimeoutSeconds)
+      : repair ? repairTimeoutSeconds : standardTimeoutSeconds;
+    onProgress?.(currentPhase, { ...diagnostics(), ...(timeoutSeconds !== standardTimeoutSeconds ? { timeoutSeconds } : {}) });
     const started = performance.now();
     try {
       const response = await request(config.url, {
@@ -574,7 +576,12 @@ export async function analyzeCharacterImage({ bytes, mime }, { provider = loadCh
         { type: "text", text: ANALYSIS_PROMPT + `\n所有面向用户的文字字段只使用${ANALYSIS_LANGUAGE[locale] || ANALYSIS_LANGUAGE.en}。` },
         { type: "image", source: { type: "base64", media_type: info.mime, data: Buffer.from(source).toString("base64") } },
       ],
-      send: characterSender(config, request, { model: config.visionModel || config.model, budget: 6144 }),
+      // Image analysis returns the largest character payload. If validation asks
+      // for the one allowed correction, give that independent request enough
+      // time to finish on slower compatible vision/chat providers.
+      send: characterSender(config, request, {
+        model: config.visionModel || config.model, budget: 6144, timeoutSeconds: 90, repairTimeoutSeconds: 90,
+      }),
       validate: patch => {
         requireDialogue(patch?.dialogue, CHARACTER_INTENTS, GENERATED_DIALOGUE_MAX, GENERATED_DIALOGUE_COUNT);
         requireObject(patch?.easterEgg, "角色彩蛋", "easterEgg");

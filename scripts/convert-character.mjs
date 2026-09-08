@@ -34,7 +34,7 @@ if (!input || !output || extra.length) {
     const png = bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
     const jpeg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
     if (!png && !jpeg) throw new Error("仅支持 PNG 或 JPG 图片，不按文件扩展名猜测格式。");
-    const decoder = sharp(bytes, { limitInputPixels: 1024 * 1024, animated: false });
+    const decoder = sharp(bytes, { limitInputPixels: 4 * 1024 * 1024, animated: false });
     const metadata = await decoder.metadata();
     if (!["png", "jpeg"].includes(metadata.format) || (metadata.pages || 1) > 1) {
       throw new Error("仅支持单帧 PNG 或 JPG。");
